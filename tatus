@@ -1,0 +1,183 @@
+[33mcommit 5e8910e40a728a3cdf5e267c73b99fb549b70611[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m
+Author: Piyush Thote <piyushthote0411@gmail.com>
+Date:   Tue Jun 23 17:23:01 2026 +0530
+
+    CodeCompass AI - working pipeline with Streamlit UI
+
+[1mdiff --git a/.gitignore b/.gitignore[m
+[1mnew file mode 100644[m
+[1mindex 0000000..af6716f[m
+[1m--- /dev/null[m
+[1m+++ b/.gitignore[m
+[36m@@ -0,0 +1,8 @@[m
+[32m+[m[32m.venv/[m
+[32m+[m[32mvenv/[m
+[32m+[m[32mcloned_repo/[m
+[32m+[m[32mcloned_repos/[m
+[32m+[m[32m__pycache__/[m
+[32m+[m[32m.env[m
+[32m+[m[32m*.pkl[m
+[32m+[m[32m*.bin[m
+\ No newline at end of file[m
+[1mdiff --git a/flask_dependency_graph.png b/flask_dependency_graph.png[m
+[1mnew file mode 100644[m
+[1mindex 0000000..bf016da[m
+Binary files /dev/null and b/flask_dependency_graph.png differ
+[1mdiff --git a/graph_engine.py b/graph_engine.py[m
+[1mnew file mode 100644[m
+[1mindex 0000000..70808e3[m
+[1m--- /dev/null[m
+[1m+++ b/graph_engine.py[m
+[36m@@ -0,0 +1,50 @@[m
+[32m+[m[32mimport  networkx as nx[m[41m [m
+[32m+[m[32mdef build_dependency_graph(repo_report):[m
+[32m+[m[32m    """[m
+[32m+[m[32m    it makes the graph <<- ingestion[m
+[32m+[m[32m      """[m
+[32m+[m[32m    G = nx.DiGraph() # directed graph[m[41m [m
+[32m+[m
+[32m+[m[32m    all_files = [data["file"] for data in repo_report][m
+[32m+[m[32m    for file in all_files :[m
+[32m+[m[32m        G.add_node(file,type="file")[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    for data in repo_report: #edges[m[41m [m
+[32m+[m[32m        current_file = data["file"][m
+[32m+[m[41m        [m
+[32m+[m[32m        imports = data["imports"][m
+[32m+[m[32m# if imported fiel equal t owithin files[m[41m [m
+[32m+[m[32m        for imp in imports:[m
+[32m+[m[32m            for target_file in all_files:[m
+[32m+[m[32m                target_base = target_file.split(".")[0][m
+[32m+[m
+[32m+[m[32m                if imp == target_base  or imp.endswith(target_base):[m
+[32m+[m[32m                    G.add_edge(current_file, target_file)[m
+[32m+[m[32m    return G[m
+[32m+[m
+[32m+[m[32mdef get_related_files(graph, matched_files):[m
+[32m+[m[32m    """[m
+[32m+[m[32m    GIven a built dependency rpah ,fiels direclty connected[m[41m [m
+[32m+[m[32m    """[m
+[32m+[m[32m    related = set()[m
+[32m+[m[32m    for file in matched_files:[m
+[32m+[m[32m        if file in graph:[m
+[32m+[m[32m            related.update(graph.successors(file))[m
+[32m+[m[32m            related.update(graph.predecessors(file))[m
+[32m+[m[32m    return related - set(matched_files)[m
+[32m+[m
+[32m+[m
+[32m+[m[32mif __name__ == "__main__":[m
+[32m+[m[32m    from parser_engine import scan_repo as scan_repository[m[41m [m
+[32m+[m[32m    import os[m[41m [m
+[32m+[m
+[32m+[m[32m    current_dir = os.path.dirname(os.path.abspath(__file__)) if os.path.dirname(os.path.abspath(__file__))else "."[m
+[32m+[m[32m    report = scan_repository(current_dir)[m
+[32m+[m[32m    graph = build_dependency_graph(report)[m
+[32m+[m
+[32m+[m[32m    print("--- Dependency Graph Stats ---")[m
+[32m+[m[32m    print(f"Total Files (Nodes): {graph.number_of_nodes()}")[m
+[32m+[m[32m    print(f"Total Connections (Edges): {graph.number_of_edges()}")[m
+[32m+[m[32m    print("Nodes list:", list(graph.nodes))[m
+[32m+[m[32m    print("Connections list:", list(graph.edges))[m
+\ No newline at end of file[m
+[1mdiff --git a/graph_visualize.py b/graph_visualize.py[m
+[1mnew file mode 100644[m
+[1mindex 0000000..b663bcc[m
+[1m--- /dev/null[m
+[1m+++ b/graph_visualize.py[m
+[36m@@ -0,0 +1,21 @@[m
+[32m+[m[32mimport matplotlib[m
+[32m+[m[32mmatplotlib.use("Agg")[m
+[32m+[m[32mimport matplotlib.pyplot as plt[m
+[32m+[m[32mimport networkx as nx[m
+[32m+[m
+[32m+[m[32mdef visualize_graph(graph, output_path="dependency_graph.png"):[m
+[32m+[m[32m    plt.figure(figsize=(14, 10))[m
+[32m+[m[32m    pos = nx.spring_layout(graph, k=0.5, seed=42)[m
+[32m+[m[32m    nx.draw([m
+[32m+[m[32m        graph, pos,[m
+[32m+[m[32m        with_labels=True,[m
+[32m+[m[32m        node_color="lightblue",[m
+[32m+[m[32m        node_size=800,[m
+[32m+[m[32m        font_size=7,[m
+[32m+[m[32m        arrows=True,[m
+[32m+[m[32m        edge_color="gray"[m
+[32m+[m[32m    )[m
+[32m+[m[32m    plt.title("Codebase dependency graph")[m
+[32m+[m[32m    plt.savefig(output_path, dpi=150, bbox_inches="tight")[m
+[32m+[m[32m    plt.close()[m
+[32m+[m[32m    print(f"Graph saved to {output_path}")[m
+\ No newline at end of file[m
+[1mdiff --git a/httpx_dependency_graph.png b/httpx_dependency_graph.png[m
+[1mnew file mode 100644[m
+[1mindex 0000000..046594d[m
+Binary files /dev/null and b/httpx_dependency_graph.png differ
+[1mdiff --git a/json_dependency_graph.png b/json_dependency_graph.png[m
+[1mnew file mode 100644[m
+[1mindex 0000000..f2d797e[m
+Binary files /dev/null and b/json_dependency_graph.png differ
+[1mdiff --git a/parser_engine.py b/parser_engine.py[m
+[1mnew file mode 100644[m
+[1mindex 0000000..34817c8[m
+[1m--- /dev/null[m
+[1m+++ b/parser_engine.py[m
+[36m@@ -0,0 +1,59 @@[m
+[32m+[m[32mimport ast[m[41m [m
+[32m+[m[32mimport os[m[41m [m
+[32m+[m[32mimport json[m[41m [m
+[32m+[m[32mdef analyze_python_file(file_path , base_dir):[m
+[32m+[m[32m    """[m
+[32m+[m[32m    Parses a single Python file to extract top-level[m[41m [m
+[32m+[m[32m    imports, classes, and functions.[m
+[32m+[m[32m    """[m
+[32m+[m[32m    with open(file_path , "r",encoding="utf-8")as f:[m
+[32m+[m[32m        try:[m
+[32m+[m[32m            tree = ast.parse(f.read())[m
+[32m+[m[32m        except SyntaxError:[m
+[32m+[m[32m            return  None[m
+[32m+[m[41m    [m
+[32m+[m[32m    file_info ={[m
+[32m+[m[32m        "file":os.path.relpath(file_path,base_dir).replace('\\','/'),[m
+[32m+[m[32m        "imports":[],[m
+[32m+[m[32m        "classes":[],[m
+[32m+[m[32m        "functions":[][m
+[32m+[m[32m    }[m
+[32m+[m[32m    for node in ast.walk(tree):[m
+[32m+[m[32m        if isinstance(node,ast.Import): #captures the satndard imports[m
+[32m+[m[32m            for n in node.names:[m
+[32m+[m[32m                file_info["imports"].append(n.name)[m
+[32m+[m[41m        [m
+[32m+[m[32m        elif isinstance(node,ast.ImportFrom):[m
+[32m+[m[32m            if node.module:[m
+[32m+[m[32m                file_info["imports"].append(node.module)[m
+[32m+[m[41m        [m
+[32m+[m[32m        elif isinstance(node, ast.ClassDef):[m
+[32m+[m[32m            file_info["classes"].append(node.name)[m
+[32m+[m
+[32m+[m[32m        elif isinstance(node,ast.FunctionDef):[m
+[32m+[m[32m            file_info["functions"].append(node.name)[m
+[32m+[m[32m    return file_info[m[41m        [m
+[32m+[m
+[32m+[m
+[32m+[m[32mdef scan_repo(repo_path):[m
+[32m+[m[32m    """[m
+[32m+[m[32m    for walking through repository[m[41m [m
+[32m+[m[32m    """[m
+[32m+[m[32m    repo_report=[][m
+[32m+[m[32m    for root,_,files in os.walk(repo_path):[m
+[32m+[m[32m        for file in files:[m
+[32m+[m[32m            if "venv" in root or ".git" in root:[m
+[32m+[m[32m                continue[m
+[32m+[m[32m            if file.endswith(".py"):[m
+[32m+[m[32m                full_path = os.path.join(root, file)[m
+[32m+[m[32m                analysis = analyze_python_file(full_path, repo_path)[m
+[32m+[m[32m                if analysis:[m
+[32m+[m[32m                    repo_report.append(analysis)[m
+[32m+[m[32m    return repo_report[m
+[32m+[m
+[32m+[m[32mif __name__ == "__main__":[m
+[32m+[m[32m    # Test the parser engine on its own directory[m
+[32m+[m[32m    print("Testing parser engine on current directory...")[m
+[32m+[m[32m    current_dir = os.path.dirname(os.path.abspath(__file__)) if os.path.dirname(os.path.abspath(__file__)) else "."[m
+[32m+[m[32m    result = scan_repo(current_dir)[m
+[32m+[m[32m    print(json.d
