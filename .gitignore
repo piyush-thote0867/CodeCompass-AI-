@@ -1,0 +1,8 @@
+.venv/
+venv/
+cloned_repo/
+cloned_repos/
+__pycache__/
+.env
+*.pkl
+*.bin
