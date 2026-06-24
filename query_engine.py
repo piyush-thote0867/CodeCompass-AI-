@@ -135,6 +135,23 @@ Summary:"""
     )
     return response.choices[0].message.content
 
+# non py files 
+def generate_document_summary(text):
+    prompt = f"""You are summarizing a collection of documents found in a repository.
+Below is extracted text from the beginning of these documents.
+
+Text:
+{text}
+
+Write a short, plain-language summary (3-5 sentences) describing what this collection is about.
+
+Summary:"""
+    response = groq_client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.3
+    )
+    return response.choices[0].message.content
 if __name__ == "__main__":
     test_query = "How is the dependency graph built "
     results =search_codebase(test_query)
