@@ -1,3 +1,4 @@
+import os
 import  networkx as nx 
 def build_dependency_graph(repo_report):
     """
@@ -9,18 +10,32 @@ def build_dependency_graph(repo_report):
     for file in all_files :
         G.add_node(file,type="file")
 
+    # map a file's basename (no extension) -> list of files that share it
+    # e.g. "src/flask/app.py" -> key "app"
+    # __init__.py also gets mapped under its parent folder name, since
+    # "from . import x" / "import mypkg" usually refers to the package
+    basename_map = {}
+    for f in all_files:
+        base = os.path.splitext(os.path.basename(f))[0]
+        basename_map.setdefault(base, []).append(f)
+        if base == "__init__":
+            pkg_name = os.path.basename(os.path.dirname(f))
+            if pkg_name:
+                basename_map.setdefault(pkg_name, []).append(f)
 
     for data in repo_report: #edges 
         current_file = data["file"]
-        
         imports = data["imports"]
-# if imported fiel equal t owithin files 
-        for imp in imports:
-            for target_file in all_files:
-                target_base = target_file.split(".")[0]
 
-                if imp == target_base  or imp.endswith(target_base):
-                    G.add_edge(current_file, target_file)
+        for imp in imports:
+            # dotted import like "flask.app" -> check each segment,
+            # since local imports can be absolute ("flask.app"),
+            # relative ("app"), or partial ("app" from "flask.app.something")
+            parts = imp.split(".")
+            for part in parts:
+                for target_file in basename_map.get(part, []):
+                    if target_file != current_file:
+                        G.add_edge(current_file, target_file)
     return G
 
 def get_related_files(graph, matched_files):
